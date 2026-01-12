@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clima Premium | Tu App del Tiempo</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="background-overlay" id="bg-overlay"></div>
+
+    <main class="app-container" id="container">
+        <!-- Search Section -->
+        <header class="search-section">
+            <form class="search-bar" id="search-submit">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" class="search-input" id="search-input" placeholder="Buscar ciudad..."
+                    autocomplete="off">
+                <button type="submit" class="cta-search">Buscar</button>
+            </form>
+            <button id="geo-btn" class="geo-btn" title="Usar mi ubicación">
+                <i data-lucide="map-pin"></i>
+            </button>
+        </header>
+
+        <!-- Current Weather Section -->
+        <section class="current-weather">
+            <div class="location-info">
+                <h1 class="city-name" id="timezone">Cargando...</h1>
+                <p class="current-date" id="date">-- de --, ----</p>
+            </div>
+
+            <div class="weather-main">
+                <div class="temp-display">
+                    <span class="temp-value" id="Numero-Grados">--</span>
+                    <span class="temp-unit">°C</span>
+                </div>
+                <div class="weather-visual">
+                    <div id="wheater-Icon" class="weather-icon-container"></div>
+                    <p class="weather-description" id="Descripcion">--</p>
+                </div>
+            </div>
+
+            <div class="temp-range">
+                <div class="temp-item">
+                    <i data-lucide="arrow-down" class="min-icon"></i>
+                    <span>Min: <b id="min">--</b>°C</span>
+                </div>
+                <div class="temp-item">
+                    <i data-lucide="arrow-up" class="max-icon"></i>
+                    <span>Max: <b id="max">--</b>°C</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detailed Metrics Section -->
+        <section class="weather-details">
+            <div class="detail-card">
+                <i data-lucide="droplets"></i>
+                <div class="detail-info">
+                    <span class="detail-label">Humedad</span>
+                    <span class="detail-value" id="humidity">--%</span>
+                </div>
+            </div>
+            <div class="detail-card">
+                <i data-lucide="wind"></i>
+                <div class="detail-info">
+                    <span class="detail-label">Viento</span>
+                    <span class="detail-value" id="wind">-- km/h</span>
+                </div>
+            </div>
+            <div class="detail-card">
+                <i data-lucide="thermometer"></i>
+                <div class="detail-info">
+                    <span class="detail-label">Sensación</span>
+                    <span class="detail-value" id="feels-like">--°C</span>
+                </div>
+            </div>
+            <div class="detail-card">
+                <i data-lucide="gauge"></i>
+                <div class="detail-info">
+                    <span class="detail-label">Presión</span>
+                    <span class="detail-value" id="pressure">-- hPa</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Forecast Section -->
+        <section class="forecast-section">
+            <h2 class="section-title">Pronóstico 5 días</h2>
+            <div class="forecast-scroll" id="forecast-container">
+                <!-- Forecast items will be injected here by JS -->
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/es.min.js"></script>
+    <script src="javascript.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
