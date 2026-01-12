@@ -462,13 +462,69 @@ body {
 
 /* Responsive Adjustments */
 @media (max-width: 480px) {
+    body {
+        padding: 20px;
+        align-items: flex-start;
+        /* Permite scroll si el contenido es largo */
+    }
+
     .app-container {
         margin: 0;
-        border-radius: 0;
-        min-height: 100vh;
+        width: 100%;
+        max-width: 100%;
+        min-height: auto;
+        border-radius: 24px;
+        gap: 15px;
+    }
+
+    .weather-main {
+        margin: 20px 0;
+    }
+
+    .city-name {
+        font-size: 1.5rem;
+        /* Antes 2rem */
     }
 
     .temp-value {
-        font-size: 6rem;
+        font-size: 5rem;
+        /* Antes 5.5rem - Mucho más compacto */
+    }
+
+    .temp-unit {
+        font-size: 1.5rem;
+    }
+
+    .weather-icon-container {
+        width: 120px;
+        height: 50px;
+    }
+
+    .weather-icon-container i {
+        width: 120px;
+        height: 50px;
+    }
+
+    .weather-details {
+        gap: 10px;
+    }
+
+    .detail-card {
+        padding: 15px;
+    }
+
+    .detail-value {
+        font-size: 0.80rem;
+        font-weight: 600;
+    }
+
+    .temp-item {
+        font-size: 0.80rem;
+        padding: 5px 12px;
+    }
+
+    .forecast-item {
+        min-width: 90px;
+        padding: 2px 4px;
     }
 }

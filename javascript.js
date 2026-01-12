@@ -174,7 +174,13 @@ const getUserLocation = () => {
 
 searchForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    const city = searchInput.value.trim();
+    let city = searchInput.value.trim();
+
+    // Filtro para Alias
+    if (city.toLowerCase() === "brugo") {
+        city = "Pueblo Brugo";
+    }
+
     if (city) {
         fetchAllWeather(city);
         searchInput.value = "";
