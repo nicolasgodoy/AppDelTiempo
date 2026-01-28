@@ -15,6 +15,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -35,79 +38,129 @@
             </button>
         </header>
 
-        <!-- Current Weather Section -->
-        <section class="current-weather">
-            <div class="location-info">
-                <h1 class="city-name" id="timezone">Cargando...</h1>
-                <p class="current-date" id="date">-- de --, ----</p>
+        <div class="app-grid">
+            <!-- Left Column: Current Weather & Metrics -->
+            <div class="main-column">
+                <!-- Current Weather Section -->
+                <section class="current-weather">
+                    <div class="location-info">
+                        <h1 class="city-name" id="timezone">Cargando...</h1>
+                        <p class="current-date" id="date">-- de --, ----</p>
+                    </div>
+
+                    <div class="weather-main">
+                        <div class="temp-display">
+                            <span class="temp-value" id="Numero-Grados">--</span>
+                            <span class="temp-unit">°C</span>
+                        </div>
+                        <div class="weather-visual">
+                            <div id="wheater-Icon" class="weather-icon-container"></div>
+                            <p class="weather-description" id="Descripcion">--</p>
+                        </div>
+                    </div>
+
+                    <div class="temp-range">
+                        <div class="temp-item">
+                            <i data-lucide="arrow-down" class="min-icon"></i>
+                            <span>Min: <b id="min">--</b>°C</span>
+                        </div>
+                        <div class="temp-item">
+                            <i data-lucide="arrow-up" class="max-icon"></i>
+                            <span>Max: <b id="max">--</b>°C</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Detailed Metrics Section -->
+                <section class="weather-details">
+                    <div class="detail-card">
+                        <i data-lucide="droplets"></i>
+                        <div class="detail-info">
+                            <span class="detail-label">Humedad</span>
+                            <span class="detail-value" id="humidity">--%</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <i data-lucide="wind"></i>
+                        <div class="detail-info">
+                            <span class="detail-label">Viento</span>
+                            <span class="detail-value" id="wind">-- km/h</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <i data-lucide="thermometer"></i>
+                        <div class="detail-info">
+                            <span class="detail-label">Sensación</span>
+                            <span class="detail-value" id="feels-like">--°C</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <i data-lucide="gauge"></i>
+                        <div class="detail-info">
+                            <span class="detail-label">Presión</span>
+                            <span class="detail-value" id="pressure">-- hPa</span>
+                        </div>
+                    </div>
+                </section>
             </div>
 
-            <div class="weather-main">
-                <div class="temp-display">
-                    <span class="temp-value" id="Numero-Grados">--</span>
-                    <span class="temp-unit">°C</span>
-                </div>
-                <div class="weather-visual">
-                    <div id="wheater-Icon" class="weather-icon-container"></div>
-                    <p class="weather-description" id="Descripcion">--</p>
-                </div>
-            </div>
+            <!-- Right Column: Chart & Forecast -->
+            <div class="side-column">
+                <!-- Trend Chart Section -->
+                <section class="chart-section">
+                    <h2 class="section-title">Tendencia de Temperatura</h2>
+                    <div class="chart-container">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                </section>
 
-            <div class="temp-range">
-                <div class="temp-item">
-                    <i data-lucide="arrow-down" class="min-icon"></i>
-                    <span>Min: <b id="min">--</b>°C</span>
-                </div>
-                <div class="temp-item">
-                    <i data-lucide="arrow-up" class="max-icon"></i>
-                    <span>Max: <b id="max">--</b>°C</span>
-                </div>
+                <!-- Forecast Section -->
+                <section class="forecast-section">
+                    <h2 class="section-title">Pronóstico 5 días</h2>
+                    <div class="forecast-scroll" id="forecast-container">
+                        <!-- Forecast items will be injected here by JS -->
+                    </div>
+                </section>
             </div>
-        </section>
-
-        <!-- Detailed Metrics Section -->
-        <section class="weather-details">
-            <div class="detail-card">
-                <i data-lucide="droplets"></i>
-                <div class="detail-info">
-                    <span class="detail-label">Humedad</span>
-                    <span class="detail-value" id="humidity">--%</span>
-                </div>
-            </div>
-            <div class="detail-card">
-                <i data-lucide="wind"></i>
-                <div class="detail-info">
-                    <span class="detail-label">Viento</span>
-                    <span class="detail-value" id="wind">-- km/h</span>
-                </div>
-            </div>
-            <div class="detail-card">
-                <i data-lucide="thermometer"></i>
-                <div class="detail-info">
-                    <span class="detail-label">Sensación</span>
-                    <span class="detail-value" id="feels-like">--°C</span>
-                </div>
-            </div>
-            <div class="detail-card">
-                <i data-lucide="gauge"></i>
-                <div class="detail-info">
-                    <span class="detail-label">Presión</span>
-                    <span class="detail-value" id="pressure">-- hPa</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- Forecast Section -->
-        <section class="forecast-section">
-            <h2 class="section-title">Pronóstico 5 días</h2>
-            <div class="forecast-scroll" id="forecast-container">
-                <!-- Forecast items will be injected here by JS -->
-            </div>
-        </section>
+        </div>
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/es.min.js"></script>
+
+    <!-- Detailed Day Modal -->
+    <div id="day-modal" class="modal">
+        <div class="modal-backdrop" id="modal-close-bg"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close-btn">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="modal-header">
+                <h2 id="modal-day-name">Lunes</h2>
+                <p id="modal-date">28 de Enero</p>
+            </div>
+            <div class="modal-stats">
+                <div class="modal-stat-item">
+                    <i data-lucide="droplets"></i>
+                    <span class="stat-label">Hum. Prom.</span>
+                    <b id="modal-hum">--%</b>
+                </div>
+                <div class="modal-stat-item">
+                    <i data-lucide="wind"></i>
+                    <span class="stat-label">Viento Máx.</span>
+                    <b id="modal-wind">-- km/h</b>
+                </div>
+                <div class="modal-stat-item">
+                    <i data-lucide="cloud-rain"></i>
+                    <span class="stat-label">Prob. Lluvia</span>
+                    <b id="modal-rain">--%</b>
+                </div>
+            </div>
+            <div class="modal-hourly-forecast" id="modal-hourly-list">
+                <!-- Hourly items -->
+            </div>
+        </div>
+    </div>
     <script src="javascript.js"></script>
     <script>
         // Initialize Lucide icons
