@@ -257,6 +257,21 @@ body {
     color: #0f172a;
 }
 
+.geo-btn.loading i {
+    animation: spin 1s infinite linear;
+    color: var(--accent);
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Current Weather */
 .current-weather {
     text-align: center;

@@ -340,6 +340,7 @@ async function fetchAllWeather(cityOrCoords) {
 // --- Geolocation ---
 
 const getUserLocation = () => {
+    geoBtn.classList.add("loading");
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -347,11 +348,16 @@ const getUserLocation = () => {
                     lat: position.coords.latitude,
                     lon: position.coords.longitude
                 });
+                geoBtn.classList.remove("loading");
             },
-            () => fetchAllWeather("Parana") // Fallback
+            () => {
+                fetchAllWeather("Parana");
+                geoBtn.classList.remove("loading");
+            }
         );
     } else {
         fetchAllWeather("Parana");
+        geoBtn.classList.remove("loading");
     }
 };
 
