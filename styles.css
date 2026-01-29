@@ -957,4 +957,13 @@ body {
         padding: 10px;
         font-size: 0.85rem;
     }
+
+    /* Hide text in close details button */
+    .layer-btn.close-details span {
+        display: none;
+    }
+
+    .layer-btn.close-details {
+        padding: 8px 10px;
+    }
 }
