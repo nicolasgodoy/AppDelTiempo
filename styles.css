@@ -903,14 +903,50 @@ body {
 
 /* Responsive Adjustments */
 @media (max-width: 900px) {
+    .map-container {
+        height: 350px;
+    }
+
+    .map-legend {
+        width: 150px;
+        bottom: 20px;
+        right: 15px;
+        padding: 8px;
+    }
+
     .app-grid {
         grid-template-columns: 1fr;
-        /* Stack columns earlier */
         gap: 30px;
     }
 
     .app-container {
         max-width: 550px;
+    }
+}
+
+@media (max-width: 480px) {
+    .vivid-layer {
+        filter: saturate(4) contrast(1.3) brightness(1.1) !important;
+    }
+
+    .map-container {
+        height: 380px;
+    }
+
+    .map-legend {
+        width: 130px;
+        padding: 8px;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .legend-title {
+        font-size: 0.65rem;
+        margin-bottom: 5px;
+    }
+
+    .legend-labels {
+        font-size: 0.6rem;
     }
 }
 
