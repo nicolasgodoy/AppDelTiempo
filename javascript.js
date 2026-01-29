@@ -27,6 +27,9 @@ let fullForecastList = [];
 // --- Windy Widget Variables ---
 let currentLayer = 'precip'; // Default layer (rain)
 const windyIframe = document.getElementById('windy-iframe');
+let mapLat = -31.733; // Default Paraná, Entre Ríos
+let mapLon = -60.530;
+let mapZoom = 6;
 
 // --- Cache Utilities ---
 const getCache = (key) => {
@@ -206,9 +209,6 @@ const switchWindyLayer = (layer) => {
 
     currentLayer = layer;
 
-    // Base URL with Paraná coordinates
-    const baseUrl = 'https://embed.windy.com/embed2.html?lat=-31.733&lon=-60.530&detailLat=-31.733&detailLon=-60.530&zoom=6&level=surface';
-
     // Layer mapping
     const overlayMap = {
         'precip': 'rain',
@@ -218,8 +218,31 @@ const switchWindyLayer = (layer) => {
 
     const overlay = overlayMap[layer] || 'temp';
 
-    // Update iframe src
-    iframe.src = `${baseUrl}&overlay=${overlay}&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1`;
+    // Update iframe src using persistent coordinates
+    const baseUrl = 'https://embed.windy.com/embed2.html';
+    const params = new URLSearchParams({
+        lat: mapLat.toFixed(3),
+        lon: mapLon.toFixed(3),
+        detailLat: mapLat.toFixed(3),
+        detailLon: mapLon.toFixed(3),
+        zoom: mapZoom,
+        level: 'surface',
+        overlay: overlay,
+        product: 'ecmwf',
+        menu: '',
+        message: '',
+        marker: 'true',
+        calendar: 'now',
+        pressure: '',
+        type: 'map',
+        location: 'coordinates',
+        detail: '',
+        metricWind: 'default',
+        metricTemp: 'default',
+        radarRange: '-1'
+    });
+
+    iframe.src = `${baseUrl}?${params.toString()}`;
 
     // Update button states
     const btnPrecip = document.getElementById("layer-precip");
@@ -235,6 +258,76 @@ const switchWindyLayer = (layer) => {
     } else {
         btnWind.classList.add("active");
     }
+};
+
+const resetWindyView = () => {
+    const iframe = document.getElementById('windy-iframe');
+    if (!iframe) return;
+
+    // Build URL without detailLat/detailLon to hide the white panel
+    const baseUrl = 'https://embed.windy.com/embed2.html';
+    const params = new URLSearchParams({
+        lat: mapLat.toFixed(3),
+        lon: mapLon.toFixed(3),
+        zoom: mapZoom,
+        level: 'surface',
+        overlay: currentLayer === 'precip' ? 'rain' : (currentLayer === 'wind' ? 'wind' : 'temp'),
+        product: 'ecmwf',
+        menu: '',
+        message: '',
+        marker: 'true',
+        calendar: 'now',
+        pressure: '',
+        type: 'map',
+        location: 'coordinates',
+        detail: '',
+        metricWind: 'default',
+        metricTemp: 'default',
+        radarRange: '-1'
+    });
+
+    iframe.src = `${baseUrl}?${params.toString()}`;
+};
+
+const updateWindyLocation = (lat, lon) => {
+    const iframe = document.getElementById('windy-iframe');
+    if (!iframe) return;
+
+    // Update global coordinates for persistence
+    mapLat = lat;
+    mapLon = lon;
+    mapZoom = 8;
+
+    // Get current overlay from the iframe src
+    const currentSrc = iframe.src;
+    const overlayMatch = currentSrc.match(/overlay=([^&]+)/);
+    const currentOverlay = overlayMatch ? overlayMatch[1] : 'rain';
+
+    // Update iframe with new coordinates, maintaining current layer
+    const baseUrl = 'https://embed.windy.com/embed2.html';
+    const params = new URLSearchParams({
+        lat: mapLat.toFixed(3),
+        lon: mapLon.toFixed(3),
+        detailLat: mapLat.toFixed(3),
+        detailLon: mapLon.toFixed(3),
+        zoom: mapZoom,
+        level: 'surface',
+        overlay: currentOverlay,
+        product: 'ecmwf',
+        menu: '',
+        message: '',
+        marker: 'true', // Show marker on searched location
+        calendar: 'now',
+        pressure: '',
+        type: 'map',
+        location: 'coordinates',
+        detail: '',
+        metricWind: 'default',
+        metricTemp: 'default',
+        radarRange: '-1'
+    });
+
+    iframe.src = `${baseUrl}?${params.toString()}`;
 };
 
 // --- Main Data Functions ---
@@ -294,11 +387,26 @@ const displayForecast = (data) => {
 };
 
 async function fetchAllWeather(cityOrCoords) {
-    let lat, lon, officialName, state;
+    let lat, lon, officialName, state, country;
 
     try {
         if (typeof cityOrCoords === 'string') {
-            const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${cityOrCoords}&limit=1&appid=${API_KEY}`;
+            let searchTerms = cityOrCoords.trim();
+            const lowerSearch = searchTerms.toLowerCase();
+            const parts = searchTerms.split(',');
+            const lastPart = parts[parts.length - 1].trim().toLowerCase();
+
+            // Sesgamos la búsqueda a Argentina solo si:
+            // 1. Es una sola palabra (sin comas)
+            // 2. No es un país conocido o un alias internacional
+            const isCountry = Object.keys(COUNTRY_NAMES).some(code => lowerSearch === code.toLowerCase() || lowerSearch === COUNTRY_NAMES[code].toLowerCase());
+            const isFamousCity = ["london", "berlin", "moscu", "moscow", "paris", "tokio", "tokyo", "madrid", "roma", "rome", "new york", "belem"].some(city => lowerSearch.includes(city));
+
+            if (parts.length === 1 && !isCountry && !isFamousCity) {
+                searchTerms = `${searchTerms}, AR`;
+            }
+
+            const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${searchTerms}&limit=1&appid=${API_KEY}`;
             const geoRes = await fetch(geoUrl);
             const geoData = await geoRes.json();
 
@@ -307,14 +415,16 @@ async function fetchAllWeather(cityOrCoords) {
             lat = geoData[0].lat;
             lon = geoData[0].lon;
             state = geoData[0].state;
+            country = geoData[0].country; // Guardamos el país
 
-            // Actualizar mapa si existe una búsqueda
-            updateMapPosition(lat, lon);
+            // Actualizar mapa de Windy con la ubicación buscada
+            updateWindyLocation(lat, lon);
 
             // Intentar obtener el nombre en Español (local_names.es)
             officialName = (geoData[0].local_names && geoData[0].local_names.es)
                 ? geoData[0].local_names.es
                 : geoData[0].name;
+            country = geoData[0].country; // Guardamos el país
         } else {
             console.log("Obteniendo clima por coordenadas...");
             lat = cityOrCoords.lat;
@@ -326,6 +436,7 @@ async function fetchAllWeather(cityOrCoords) {
             const revData = await revRes.json();
             if (revData && revData.length > 0) {
                 state = revData[0].state;
+                country = revData[0].country;
                 officialName = (revData[0].local_names && revData[0].local_names.es)
                     ? revData[0].local_names.es
                     : revData[0].name;
@@ -358,16 +469,16 @@ async function fetchAllWeather(cityOrCoords) {
         const currentData = await currentRes.json();
         const forecastData = await forecastRes.json();
 
-        // Enriquecer el nombre con Traducción
+        // Formatear display name basado en país
         if (officialName) {
-            // Limpiar el nombre del estado (quitar "Province", "Provincia", etc.)
-            let cleanState = state ? state.replace(/ province| provincia/gi, "") : "";
-
-            // Evitar repetir si el estado es igual a la ciudad
-            if (cleanState && cleanState !== officialName) {
-                currentData.name = `${officialName}, ${cleanState}`;
+            if (country === "AR") {
+                // Formato Argentino: "Ciudad, Provincia"
+                let cleanState = state ? state.replace(/ province| provincia/gi, "") : "";
+                currentData.name = cleanState ? `${officialName}, ${cleanState}` : officialName;
             } else {
-                currentData.name = officialName;
+                // Formato Internacional: "Ciudad, País"
+                const countryName = COUNTRY_NAMES[country] || country;
+                currentData.name = `${officialName}, ${countryName}`;
             }
         }
 
@@ -394,10 +505,12 @@ const getUserLocation = () => {
                     lat: position.coords.latitude,
                     lon: position.coords.longitude
                 });
+                // Ensure Windy updates and shows marker for GPS location
+                updateWindyLocation(position.coords.latitude, position.coords.longitude);
                 geoBtn.classList.remove("loading");
             },
             () => {
-                fetchAllWeather("Parana");
+                fetchAllWeather("Paraná, Entre Ríos");
                 geoBtn.classList.remove("loading");
             }
         );
@@ -412,7 +525,12 @@ const getUserLocation = () => {
 const CITY_ALIASES = {
     "brugo": "Pueblo Brugo",
     "pueblo brugo": "Pueblo Brugo",
-    "parana": "Paraná",
+    "parana": "Paraná, Entre Ríos",
+    "paraná": "Paraná, Entre Ríos",
+    "santa fe": "Santa Fe, AR",
+    "salta": "Salta, AR",
+    "alemania": "Berlín, DE",
+    "germany": "Berlín, DE",
     "caba": "Buenos Aires",
     "cordoba": "Córdoba",
     "rosario": "Rosario",
@@ -456,7 +574,12 @@ modalCloseBg.addEventListener("click", closeModal);
 document.getElementById("layer-precip").addEventListener("click", () => switchWindyLayer('precip'));
 document.getElementById("layer-temp").addEventListener("click", () => switchWindyLayer('temp'));
 document.getElementById("layer-wind").addEventListener("click", () => switchWindyLayer('wind'));
+document.getElementById("close-windy-detail").addEventListener("click", resetWindyView);
 
 window.onload = () => {
+    // Limpiar cache viejo de Paraná para asegurar que se vea con la provincia
+    localStorage.removeItem("weather_cache_parana");
+    localStorage.removeItem("weather_cache_paraná");
+
     getUserLocation();
 };

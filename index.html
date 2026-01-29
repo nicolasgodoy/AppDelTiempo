@@ -46,7 +46,7 @@
                 <!-- Current Weather Section -->
                 <section class="current-weather">
                     <div class="location-info">
-                        <h1 class="city-name" id="timezone">Cargando...</h1>
+                        <h1 class="city-name" id="timezone">Paraná, Entre Ríos</h1>
                         <p class="current-date" id="date">-- de --, ----</p>
                     </div>
 
@@ -134,12 +134,15 @@
                     <button id="layer-precip" class="layer-btn active" title="Lluvias">Lluvia</button>
                     <button id="layer-temp" class="layer-btn" title="Temperatura">Calor</button>
                     <button id="layer-wind" class="layer-btn" title="Viento">Viento</button>
+                    <button id="close-windy-detail" class="layer-btn close-details" title="Cerrar detalles de mapa">
+                        <i data-lucide="minimize-2"></i> Cerrar detalles
+                    </button>
                 </div>
             </div>
             <div class="map-container">
-                <iframe id="windy-iframe" width="100%" height="100%"
-                    src="https://embed.windy.com/embed2.html?lat=-31.733&lon=-60.530&detailLat=-31.733&detailLon=-60.530&zoom=6&level=surface&overlay=rain&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
-                    frameborder="0" allowfullscreen>
+                <iframe id="windy-iframe"
+                    src="https://embed.windy.com/embed2.html?lat=-31.733&lon=-60.530&detailLat=-31.733&detailLon=-60.530&zoom=6&level=surface&overlay=rain&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
+                    frameborder="0" width="100%" height="100%" allowfullscreen></iframe>
                 </iframe>
             </div>
         </section>
