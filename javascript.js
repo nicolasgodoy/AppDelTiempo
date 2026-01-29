@@ -24,18 +24,9 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 minutos en ms
 let weatherChart = null;
 let fullForecastList = [];
 
-// --- Map Variables ---
-let weatherMap = null;
-let precipLayer = null; // OWM static fallback
-let tempLayer = null;
-let windLayer = null;
-let currentWeatherLayer = null;
-
-// --- Radar Animation (RainViewer) ---
-let radarLayers = []; // Almacena los frames del radar
-let radarInterval = null;
-let currentFrame = 0;
-let isRadarLoading = false;
+// --- Windy Widget Variables ---
+let currentLayer = 'temp'; // Default layer
+const windyIframe = document.getElementById('windy-iframe');
 
 // --- Cache Utilities ---
 const getCache = (key) => {
@@ -207,224 +198,43 @@ const closeModal = () => {
     dayModal.classList.remove("active");
 };
 
-// --- Map Functions ---
+// --- Windy Widget Functions ---
 
-const initMap = () => {
-    // Límites aproximados de Argentina
-    const argentinaBounds = L.latLngBounds(
-        L.latLng(-56.5, -75),
-        L.latLng(-21, -50.5)
-    );
+const switchWindyLayer = (layer) => {
+    const iframe = document.getElementById('windy-iframe');
+    if (!iframe) return;
 
-    const argentinaCenter = [-38.4161, -63.6167];
+    currentLayer = layer;
 
-    weatherMap = L.map('weather-map', {
-        center: argentinaCenter,
-        zoom: 4,
-        minZoom: 4,
-        maxBounds: argentinaBounds,
-        maxBoundsViscosity: 1.0
-    });
+    // Base URL with Paraná coordinates
+    const baseUrl = 'https://embed.windy.com/embed2.html?lat=-31.733&lon=-60.530&detailLat=-31.733&detailLon=-60.530&zoom=6&level=surface';
 
-    // 1. Capa BASE (Solo terreno/calles, SIN etiquetas)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 20
-    }).addTo(weatherMap);
+    // Layer mapping
+    const overlayMap = {
+        'precip': 'rain',
+        'temp': 'temp',
+        'wind': 'wind'
+    };
 
-    // 2. Capas de OpenWeatherMap (Sándwich: entre base y etiquetas)
-    precipLayer = L.tileLayer(`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${API_KEY}`, {
-        opacity: 0.9,
-        className: 'vivid-layer',
-        zIndex: 5
-    });
+    const overlay = overlayMap[layer] || 'temp';
 
-    tempLayer = L.tileLayer(`https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${API_KEY}`, {
-        opacity: 0.95,
-        className: 'vivid-layer',
-        zIndex: 5
-    });
+    // Update iframe src
+    iframe.src = `${baseUrl}&overlay=${overlay}&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1`;
 
-    windLayer = L.tileLayer(`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${API_KEY}`, {
-        opacity: 0.95,
-        className: 'vivid-layer',
-        zIndex: 5
-    });
-
-    // 3. Capa de ETIQUETAS (Siempre arriba de todo para ver ciudades)
-    const labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 20,
-        zIndex: 100, // Forzar arriba
-        opacity: 0.9
-    });
-
-    // Empezar con Lluvias por defecto
-    precipLayer.addTo(weatherMap);
-    labelsLayer.addTo(weatherMap);
-    currentWeatherLayer = precipLayer;
-
-    // Cargar radar y leyenda
-    loadRadarFrames();
-    updateMapLegend('precip');
-};
-
-const updateMapLegend = (type) => {
-    const legend = document.getElementById("map-legend");
-    let content = "";
-
-    if (type === 'precip') {
-        content = `
-            <div class="legend-title">Intensidad Lluvia</div>
-            <div class="legend-gradient" style="background: linear-gradient(to right, #f7fbff, #9ecae1, #4292c6, #084594, #08306b);"></div>
-            <div class="legend-labels">
-                <span>Ligera</span>
-                <span>Fuerte</span>
-            </div>
-        `;
-    } else if (type === 'temp') {
-        content = `
-            <div class="legend-title">Temperatura (°C)</div>
-            <div class="legend-gradient" style="background: linear-gradient(to right, #0000ff, #00ffff, #ffff00, #ff0000, #8b0000);"></div>
-            <div class="legend-labels">
-                <span>-30°</span>
-                <span>0°</span>
-                <span>45°</span>
-            </div>
-        `;
-    } else if (type === 'wind') {
-        content = `
-            <div class="legend-title">Velocidad Viento</div>
-            <div class="legend-gradient" style="background: linear-gradient(to right, #ffffff, #00ff00, #ffff00, #ff0000);"></div>
-            <div class="legend-labels">
-                <span>Baja</span>
-                <span>Alta</span>
-            </div>
-        `;
-    }
-
-    legend.innerHTML = content;
-};
-
-const loadRadarFrames = async () => {
-    if (isRadarLoading) return;
-    isRadarLoading = true;
-
-    try {
-        const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
-        const data = await response.json();
-
-        if (!data.radar || !data.radar.past) return;
-
-        // Tomamos los últimos 10 frames para una animación fluida
-        const frames = data.radar.past.slice(-10);
-        const host = data.host;
-
-        // Limpiar capas anteriores si hubiera
-        radarLayers.forEach(layer => weatherMap.removeLayer(layer));
-        radarLayers = [];
-
-        frames.forEach(frame => {
-            const layer = L.tileLayer(`${host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, {
-                opacity: 0, // Invisibles al inicio
-                zIndex: 15, // Por debajo de las etiquetas
-                className: 'vivid-layer'
-            });
-            radarLayers.push(layer);
-            layer.addTo(weatherMap);
-        });
-
-        console.log(`Radar cargado: ${radarLayers.length} frames.`);
-    } catch (error) {
-        console.error("Error cargando radar animado:", error);
-    } finally {
-        isRadarLoading = false;
-    }
-};
-
-const startRadarLoop = () => {
-    if (radarInterval) clearInterval(radarInterval);
-    if (radarLayers.length === 0) return;
-
-    radarInterval = setInterval(() => {
-        // Ocultar todos los frames
-        radarLayers.forEach(l => l.setOpacity(0));
-
-        // Mostrar el frame actual
-        radarLayers[currentFrame].setOpacity(0.9);
-
-        currentFrame = (currentFrame + 1) % radarLayers.length;
-    }, 800); // 800ms por frame para que se note el movimiento
-
-    // Mostrar el scanner visual
-    document.querySelector(".map-container").classList.add("radar-active");
-};
-
-const stopRadarLoop = () => {
-    if (radarInterval) {
-        clearInterval(radarInterval);
-        radarInterval = null;
-    }
-    radarLayers.forEach(l => l.setOpacity(0));
-    document.querySelector(".map-container").classList.remove("radar-active");
-};
-
-const updateMapPosition = (lat, lon) => {
-    if (weatherMap) {
-        weatherMap.setView([lat, lon], 8);
-        // Opcional: Agregar un marcador en la ubicación buscada
-        L.marker([lat, lon]).addTo(weatherMap)
-            .bindPopup('Ubicación seleccionada')
-            .openPopup();
-    }
-};
-
-const switchLayer = (type) => {
-    if (!weatherMap) return;
-
-    // Detener animación previa si la hubiera
-    stopRadarLoop();
-
-    // Limpiar clases de animación
-    const mapContainer = document.querySelector(".map-container");
-    mapContainer.classList.remove("radar-active", "pulse-active");
-
-    if (currentWeatherLayer) {
-        weatherMap.removeLayer(currentWeatherLayer);
-    }
-
+    // Update button states
     const btnPrecip = document.getElementById("layer-precip");
     const btnTemp = document.getElementById("layer-temp");
     const btnWind = document.getElementById("layer-wind");
 
-    // Limpiar clases activas de botones
     [btnPrecip, btnTemp, btnWind].forEach(btn => btn.classList.remove("active"));
 
-    if (type === 'precip') {
-        // En modo lluvia, usamos el radar animado si está listo
-        if (radarLayers.length > 0) {
-            startRadarLoop();
-        } else {
-            // Fallback al estático si falla RainViewer
-            precipLayer.addTo(weatherMap);
-        }
-        currentWeatherLayer = precipLayer;
+    if (layer === 'precip') {
         btnPrecip.classList.add("active");
-    } else if (type === 'temp') {
-        tempLayer.addTo(weatherMap);
-        currentWeatherLayer = tempLayer;
+    } else if (layer === 'temp') {
         btnTemp.classList.add("active");
-        mapContainer.classList.add("pulse-active"); // Efecto de calor pulsante
     } else {
-        windLayer.addTo(weatherMap);
-        currentWeatherLayer = windLayer;
         btnWind.classList.add("active");
     }
-
-    // Actualizar la leyenda visual
-    updateMapLegend(type);
 };
 
 // --- Main Data Functions ---
@@ -642,12 +452,11 @@ geoBtn.addEventListener("click", getUserLocation);
 modalCloseBtn.addEventListener("click", closeModal);
 modalCloseBg.addEventListener("click", closeModal);
 
-// Map Controls
-document.getElementById("layer-precip").addEventListener("click", () => switchLayer('precip'));
-document.getElementById("layer-temp").addEventListener("click", () => switchLayer('temp'));
-document.getElementById("layer-wind").addEventListener("click", () => switchLayer('wind'));
+// Windy Widget Controls
+document.getElementById("layer-precip").addEventListener("click", () => switchWindyLayer('precip'));
+document.getElementById("layer-temp").addEventListener("click", () => switchWindyLayer('temp'));
+document.getElementById("layer-wind").addEventListener("click", () => switchWindyLayer('wind'));
 
 window.onload = () => {
     getUserLocation();
-    initMap();
 };
