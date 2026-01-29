@@ -25,7 +25,7 @@ let weatherChart = null;
 let fullForecastList = [];
 
 // --- Windy Widget Variables ---
-let currentLayer = 'temp'; // Default layer
+let currentLayer = 'precip'; // Default layer (rain)
 const windyIframe = document.getElementById('windy-iframe');
 
 // --- Cache Utilities ---
