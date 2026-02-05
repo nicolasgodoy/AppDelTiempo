@@ -161,7 +161,8 @@ const showDayDetails = (dateString) => {
     if (dayData.length === 0) return;
 
     const firstItem = dayData[0];
-    const dateMoment = moment(firstItem.dt * 1000).locale('es');
+    // Use the dateString directly to ensure we get the correct day name regardless of time/timezone
+    const dateMoment = moment(dateString).locale('es');
 
     // UI Elements Modal
     document.getElementById("modal-day-name").textContent = dateMoment.format('dddd');
@@ -208,15 +209,16 @@ const switchWindyLayer = (layer) => {
     if (!iframe) return;
 
     currentLayer = layer;
+    let overlay;
 
     // Layer mapping
-    const overlayMap = {
-        'precip': 'rain',
-        'temp': 'temp',
-        'wind': 'wind'
-    };
-
-    const overlay = overlayMap[layer] || 'temp';
+    if (layer === 'precip') {
+        overlay = 'rain';
+    } else if (layer === 'wind') {
+        overlay = 'wind';
+    } else {
+        overlay = 'temp';
+    }
 
     // Update iframe src using persistent coordinates
     const baseUrl = 'https://embed.windy.com/embed2.html';
@@ -244,12 +246,14 @@ const switchWindyLayer = (layer) => {
 
     iframe.src = `${baseUrl}?${params.toString()}`;
 
-    // Update button states
+    // Update main layer button states
     const btnPrecip = document.getElementById("layer-precip");
     const btnTemp = document.getElementById("layer-temp");
     const btnWind = document.getElementById("layer-wind");
 
-    [btnPrecip, btnTemp, btnWind].forEach(btn => btn.classList.remove("active"));
+    [btnPrecip, btnTemp, btnWind].forEach(btn => {
+        if (btn) btn.classList.remove("active");
+    });
 
     if (layer === 'precip') {
         btnPrecip.classList.add("active");
@@ -326,6 +330,12 @@ const updateWindyLocation = (lat, lon) => {
         metricTemp: 'default',
         radarRange: '-1'
     });
+
+    // Preserve acTime if it exists in current source
+    const acTimeMatch = currentSrc.match(/acTime=([^&]+)/);
+    if (acTimeMatch) {
+        params.append('acTime', acTimeMatch[1]);
+    }
 
     iframe.src = `${baseUrl}?${params.toString()}`;
 };
@@ -543,7 +553,8 @@ const CITY_ALIASES = {
     "eeuu": "Washington D.C.",
     "españa": "Madrid",
     "spain": "Madrid",
-    "china": "Pekín"
+    "china": "Pekín",
+    "oro verde": "Oro Verde, Entre Ríos, AR"
 };
 
 const COUNTRY_NAMES = {
@@ -570,16 +581,21 @@ geoBtn.addEventListener("click", getUserLocation);
 modalCloseBtn.addEventListener("click", closeModal);
 modalCloseBg.addEventListener("click", closeModal);
 
+
 // Windy Widget Controls
+// Explicitly initialize with default 'precip' layer
 document.getElementById("layer-precip").addEventListener("click", () => switchWindyLayer('precip'));
 document.getElementById("layer-temp").addEventListener("click", () => switchWindyLayer('temp'));
 document.getElementById("layer-wind").addEventListener("click", () => switchWindyLayer('wind'));
+
 document.getElementById("close-windy-detail").addEventListener("click", resetWindyView);
 
 window.onload = () => {
     // Limpiar cache viejo de Paraná para asegurar que se vea con la provincia
     localStorage.removeItem("weather_cache_parana");
-    localStorage.removeItem("weather_cache_paraná");
 
     getUserLocation();
+
+    // Ensure correct initial state for buttons
+    switchWindyLayer('precip');
 };
