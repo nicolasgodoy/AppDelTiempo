@@ -18,6 +18,7 @@ const geoBtn = document.getElementById("geo-btn");
 const dayModal = document.getElementById("day-modal");
 const modalCloseBtn = document.getElementById("modal-close-btn");
 const modalCloseBg = document.getElementById("modal-close-bg");
+const searchResults = document.getElementById("search-results");
 
 const API_KEY = "9947d68c29bd23ed5b9b2fd3d9670ea1";
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutos en ms
@@ -403,8 +404,10 @@ async function fetchAllWeather(cityOrCoords) {
         if (typeof cityOrCoords === 'string') {
             let searchTerms = cityOrCoords.trim();
             const lowerSearch = searchTerms.toLowerCase();
-            const parts = searchTerms.split(',');
-            const lastPart = parts[parts.length - 1].trim().toLowerCase();
+            const parts = searchTerms.split(',').map(p => p.trim());
+
+            // Si el input está vacío, no hacer nada
+            if (!searchTerms) return;
 
             // Sesgamos la búsqueda a Argentina solo si:
             // 1. Es una sola palabra (sin comas)
@@ -412,35 +415,52 @@ async function fetchAllWeather(cityOrCoords) {
             const isCountry = Object.keys(COUNTRY_NAMES).some(code => lowerSearch === code.toLowerCase() || lowerSearch === COUNTRY_NAMES[code].toLowerCase());
             const isFamousCity = ["london", "berlin", "moscu", "moscow", "paris", "tokio", "tokyo", "madrid", "roma", "rome", "new york", "belem"].some(city => lowerSearch.includes(city));
 
+            // Si hay coma, respetamos lo que el usuario puso (ej: "Paris, FR")
+            // Si no hay coma y no es famoso/país, probamos con ", AR"
+            let queryTerms = searchTerms;
             if (parts.length === 1 && !isCountry && !isFamousCity) {
-                searchTerms = `${searchTerms}, AR`;
+                queryTerms = `${searchTerms}, AR`;
             }
 
-            const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${searchTerms}&limit=1&appid=${API_KEY}`;
+            const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${queryTerms}&limit=5&appid=${API_KEY}`;
             const geoRes = await fetch(geoUrl);
             const geoData = await geoRes.json();
 
-            if (!geoData || geoData.length === 0) throw new Error("Ciudad no encontrada");
+            if (!geoData || geoData.length === 0) {
+                // Si con el sesgo no falló, intentamos sin el sesgo antes de dar error
+                if (queryTerms !== searchTerms) {
+                    const fallbackRes = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${searchTerms}&limit=5&appid=${API_KEY}`);
+                    const fallbackData = await fallbackRes.json();
+                    if (fallbackData && fallbackData.length > 0) {
+                        displaySearchResults(fallbackData);
+                        return;
+                    }
+                }
+                throw new Error("Ciudad no encontrada");
+            }
 
-            lat = geoData[0].lat;
-            lon = geoData[0].lon;
-            state = geoData[0].state;
-            country = geoData[0].country; // Guardamos el país
+            // Si hay más de un resultado, mostramos el desplegable
+            if (geoData.length > 1) {
+                displaySearchResults(geoData);
+                return;
+            }
 
-            // Actualizar mapa de Windy con la ubicación buscada
+            // Si solo hay uno, procedemos normalmente
+            const bestMatch = geoData[0];
+            lat = bestMatch.lat;
+            lon = bestMatch.lon;
+            state = bestMatch.state;
+            country = bestMatch.country;
+            officialName = (bestMatch.local_names && bestMatch.local_names.es)
+                ? bestMatch.local_names.es
+                : bestMatch.name;
+
             updateWindyLocation(lat, lon);
-
-            // Intentar obtener el nombre en Español (local_names.es)
-            officialName = (geoData[0].local_names && geoData[0].local_names.es)
-                ? geoData[0].local_names.es
-                : geoData[0].name;
-            country = geoData[0].country; // Guardamos el país
         } else {
             console.log("Obteniendo clima por coordenadas...");
             lat = cityOrCoords.lat;
             lon = cityOrCoords.lon;
 
-            // Reverse geocoding para obtener nombre y estado al usar GPS
             const revGeoUrl = `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`;
             const revRes = await fetch(revGeoUrl);
             const revData = await revRes.json();
@@ -453,7 +473,6 @@ async function fetchAllWeather(cityOrCoords) {
             }
         }
 
-        // Generar una clave única para el cache
         const cacheKey = typeof cityOrCoords === 'string'
             ? cityOrCoords.toLowerCase().trim()
             : `${cityOrCoords.lat.toFixed(4)}_${cityOrCoords.lon.toFixed(4)}`;
@@ -466,42 +485,69 @@ async function fetchAllWeather(cityOrCoords) {
             return;
         }
 
-        const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=es`;
-        const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=es`;
-
-        const [currentRes, forecastRes] = await Promise.all([
-            fetch(currentUrl),
-            fetch(forecastUrl)
-        ]);
-
-        if (!currentRes.ok) throw new Error("Error al obtener el clima");
-
-        const currentData = await currentRes.json();
-        const forecastData = await forecastRes.json();
-
-        // Formatear display name basado en país
-        if (officialName) {
-            if (country === "AR") {
-                // Formato Argentino: "Ciudad, Provincia"
-                let cleanState = state ? state.replace(/ province| provincia/gi, "") : "";
-                currentData.name = cleanState ? `${officialName}, ${cleanState}` : officialName;
-            } else {
-                // Formato Internacional: "Ciudad, País"
-                const countryName = COUNTRY_NAMES[country] || country;
-                currentData.name = `${officialName}, ${countryName}`;
-            }
-        }
-
-        // Guardar en cache el resultado final procesado
-        setCache(cacheKey, { current: currentData, forecast: forecastData });
-
-        displayCurrentWeather(currentData);
-        displayForecast(forecastData);
+        await fetchWeatherData(lat, lon, officialName, state, country, cacheKey);
 
     } catch (error) {
         console.error("Error fetching weather:", error);
         alert(error.message);
     }
+}
+
+async function fetchWeatherData(lat, lon, officialName, state, country, cacheKey) {
+    const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=es`;
+    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=es`;
+
+    const [currentRes, forecastRes] = await Promise.all([
+        fetch(currentUrl),
+        fetch(forecastUrl)
+    ]);
+
+    if (!currentRes.ok) throw new Error("Error al obtener el clima");
+
+    const currentData = await currentRes.json();
+    const forecastData = await forecastRes.json();
+
+    if (officialName) {
+        if (country === "AR") {
+            let cleanState = state ? state.replace(/ province| provincia/gi, "") : "";
+            currentData.name = cleanState ? `${officialName}, ${cleanState}` : officialName;
+        } else {
+            const countryName = COUNTRY_NAMES[country] || country;
+            currentData.name = `${officialName}, ${countryName}`;
+        }
+    }
+
+    setCache(cacheKey, { current: currentData, forecast: forecastData });
+    displayCurrentWeather(currentData);
+    displayForecast(forecastData);
+    searchResults.classList.remove("active");
+}
+
+function displaySearchResults(results) {
+    searchResults.innerHTML = "";
+    results.forEach(res => {
+        const item = document.createElement("div");
+        item.className = "result-item";
+
+        const name = (res.local_names && res.local_names.es) ? res.local_names.es : res.name;
+        const countryName = COUNTRY_NAMES[res.country] || res.country;
+        const locationStr = res.state ? `${res.state}, ${countryName}` : countryName;
+
+        item.innerHTML = `
+            <span class="result-name">${name}</span>
+            <span class="result-location">${locationStr}</span>
+        `;
+
+        item.addEventListener("click", () => {
+            const cacheKey = `${res.lat.toFixed(4)}_${res.lon.toFixed(4)}`;
+            updateWindyLocation(res.lat, res.lon);
+            fetchWeatherData(res.lat, res.lon, name, res.state, res.country, cacheKey);
+            searchInput.value = "";
+        });
+
+        searchResults.appendChild(item);
+    });
+    searchResults.classList.add("active");
 }
 
 // --- Geolocation ---
@@ -580,6 +626,13 @@ searchForm.addEventListener("submit", (e) => {
 geoBtn.addEventListener("click", getUserLocation);
 modalCloseBtn.addEventListener("click", closeModal);
 modalCloseBg.addEventListener("click", closeModal);
+
+// Close search results when clicking outside
+document.addEventListener("click", (e) => {
+    if (!e.target.closest(".search-bar")) {
+        searchResults.classList.remove("active");
+    }
+});
 
 
 // Windy Widget Controls
